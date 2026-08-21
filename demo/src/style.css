@@ -183,6 +183,17 @@ table.cases tr.approved { background: var(--pass-bg); }
 .reasons { display: flex; gap: 4px; flex-wrap: wrap; }
 .mono { font-family: var(--mono); white-space: pre-wrap; }
 
+/* Editable case title in the triage table */
+.title-edit { width: 100%; font: inherit; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--ink); }
+.title-edit:hover { border-color: var(--rule); background: #fff; }
+.title-edit:focus { outline: none; border-color: var(--navy); background: #fff; box-shadow: 0 0 0 2px rgba(0, 75, 135, 0.12); }
+
+/* Coverage progress bar */
+.coverage-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.84rem; color: var(--muted); margin-bottom: 6px; }
+.coverage-track { height: 12px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--fail-bg); overflow: hidden; }
+.coverage-fill { height: 100%; background: var(--navy); transition: width 0.4s ease; }
+.coverage-fill.full { background: var(--pass); }
+
 /* RTM */
 .rtm { display: grid; gap: 8px; }
 .rtm-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: center; padding: 9px 11px; border: 1px solid var(--rule); border-left: 3px solid var(--pass); border-radius: var(--radius); background: #fff; }

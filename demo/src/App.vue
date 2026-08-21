@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
+import writeXlsxFile from 'write-excel-file/browser'
 import {
   sampleDocument,
   transcribeImages,
@@ -58,6 +59,7 @@ async function runGenerate() {
   cases.value = await generateCases(transcriptions.value)
   dupIds.value = findDuplicateIds(cases.value)
   busy.generate = false
+  if (step.value === 4) step.value = 5 // generation done → move straight to triage
 }
 
 // ── Step 4: triage signals + human approval ──
@@ -86,6 +88,9 @@ const coverage = computed(() => {
   const covered = rtm.value.filter((r) => r.cases.length > 0).length
   return { covered, total: reqItems.value.length }
 })
+const coveragePct = computed(() =>
+  coverage.value.total ? Math.round((coverage.value.covered / coverage.value.total) * 100) : 0,
+)
 
 const exportJson = computed(() =>
   JSON.stringify(
@@ -127,6 +132,33 @@ function downloadJson() {
   a.download = 'testcases.json'
   a.click()
   URL.revokeObjectURL(url)
+}
+
+const EXCEL_SCHEMA = [
+  { column: '案例編號', type: String, value: (c) => c.case_id },
+  { column: '需求', type: String, value: (c) => c.req_id },
+  { column: '模組', type: String, value: (c) => c.module },
+  { column: '受測範圍', type: String, value: (c) => c.system_scope },
+  { column: '標題', type: String, width: 30, value: (c) => c.title },
+  { column: '前置條件', type: String, width: 26, value: (c) => c.precondition },
+  { column: '步驟', type: String, width: 30, value: (c) => c.steps },
+  { column: '測試資料', type: String, value: (c) => c.test_data },
+  { column: '預期結果', type: String, width: 36, value: (c) => c.expected },
+  { column: 'API 斷言', type: String, width: 30, value: (c) => c.api_assertion || '' },
+  { column: 'code_ref', type: String, width: 26, value: (c) => c.code_ref || '' },
+  { column: 'code 已對照', type: String, value: (c) => (c.code_verified == null ? '' : c.code_verified ? '是' : '否') },
+  { column: '落差', type: String, width: 36, value: (c) => c.discrepancy || '' },
+  { column: '優先級', type: String, value: (c) => c.priority },
+  { column: '信心', type: String, value: (c) => c.confidence },
+  { column: '覆核狀態', type: String, value: (c) => c.review_status || 'pending' },
+]
+
+async function downloadExcel() {
+  await writeXlsxFile(cases.value, {
+    schema: EXCEL_SCHEMA,
+    fileName: 'testcases.xlsx',
+    sheet: '測試案例',
+  })
 }
 
 // ── Navigation ──
@@ -314,7 +346,7 @@ function restart() {
             </td>
             <td class="mono">{{ c.case_id }}<br /><small style="color: var(--muted)">{{ c.req_id }}</small></td>
             <td>
-              {{ c.title }}
+              <input class="title-edit" v-model="c.title" aria-label="案例標題（可編修）" />
               <div v-if="reviewReasons(c).disc" style="color: var(--fail-ink); font-size: 0.76rem; margin-top: 4px">
                 ⚠ {{ c.discrepancy }}
               </div>
@@ -340,11 +372,20 @@ function restart() {
 
     <!-- Step 6: Export -->
     <section v-if="step === 6" class="panel">
-      <h2>⑥ 覆蓋檢視與匯出</h2>
+      <h2>⑥ RTM 與匯出</h2>
       <p class="sub">
         RTM 把<strong>凍結後</strong>的每條需求對應到它的案例；未覆蓋的需求會被標示出來。
-        覆蓋率：<strong>{{ coverage.covered }}/{{ coverage.total }}</strong> 條需求至少有一筆案例。
       </p>
+
+      <div class="coverage" style="margin-bottom: 20px">
+        <div class="coverage-head">
+          <span>需求覆蓋率</span>
+          <span class="mono"><strong>{{ coverage.covered }}/{{ coverage.total }}</strong> · {{ coveragePct }}%</span>
+        </div>
+        <div class="coverage-track">
+          <div class="coverage-fill" :class="{ full: coveragePct === 100 }" :style="{ width: coveragePct + '%' }"></div>
+        </div>
+      </div>
 
       <div class="rtm" style="margin-bottom: 20px">
         <div v-for="r in rtm" :key="r.id" class="rtm-row" :class="{ gap: r.cases.length === 0 }">
@@ -358,16 +399,10 @@ function restart() {
         </div>
       </div>
 
-      <div class="row" style="margin-bottom: 8px">
-        <button class="btn" @click="downloadJson">⬇ 下載 JSON 契約</button>
-        <span style="color: var(--muted)">真實工具另有 Excel 匯出；這裡展示機器可讀的 JSON。</span>
+      <div class="row" style="margin-bottom: 12px">
+        <button class="btn" @click="downloadJson">⬇ 下載 JSON</button>
+        <button class="btn ghost" @click="downloadExcel">⬇ 下載 Excel</button>
       </div>
-      <p class="sub" style="margin: 0 0 10px">
-        契約帶版本號（<span class="mono">schema_version</span>）與可餵下游自動化的 code-grounded 欄位——
-        <span class="mono">steps</span> / <span class="mono">api_assertion</span> /
-        <span class="mono">code_ref</span> / <span class="mono">code_verified</span> /
-        <span class="mono">discrepancy</span>。code 對照是選用的部分層，只在適用處填值，其餘為 null。
-      </p>
       <pre class="json">{{ exportJson }}</pre>
     </section>
 
