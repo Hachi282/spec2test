@@ -218,3 +218,21 @@ pre.json { background: var(--ink); color: #d7e3ef; padding: 14px; border-radius:
 .footer-note { color: var(--muted); font-size: 0.78rem; text-align: center; margin-top: 24px; font-family: var(--mono); }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--rule); border-top-color: var(--navy); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Body text carried in the document (requirements not in any image) */
+.doc-text-hd { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em; color: var(--navy); font-weight: 600; }
+.doc-text { margin-top: 16px; border: 1px solid var(--rule); border-left: 3px solid var(--navy); border-radius: var(--radius); background: #fff; padding: 12px 14px; }
+.doc-text .doc-text-hd { margin-bottom: 8px; }
+.doc-para { margin: 0 0 8px; }
+.doc-para:last-child { margin-bottom: 0; }
+.doc-para .doc-h { font-weight: 700; color: var(--ink); font-size: 0.9rem; }
+.doc-para p { margin: 2px 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.55; }
+
+/* Per-image note in the review gate + "no requirement" anti-fabrication state */
+.src-note { font-size: 0.78rem; color: var(--muted); margin: 2px 0 6px; }
+.no-req { background: var(--idle-bg); color: var(--idle-ink); border: 1px dashed var(--rule); border-radius: var(--radius); padding: 8px 10px; font-size: 0.82rem; line-height: 1.5; margin-bottom: 8px; }
+
+/* Requirement cell: stack the text over a source-trace badge */
+.req-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.src-badge { align-self: flex-start; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.02em; color: var(--navy); background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1px 7px; }
+.img-card .cap .badge { font-size: 0.68rem; }

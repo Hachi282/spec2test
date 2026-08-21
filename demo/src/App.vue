@@ -13,6 +13,16 @@ import {
 const STEPS = ['上傳', '判讀審閱', '需求定版', '生成', '分流覆核', '覆蓋與匯出']
 const step = ref(1)
 
+// How each image relates to the spec — the core pain point the sample demonstrates:
+// spec text baked into a screenshot, a requirement living only in a mockup's annotations,
+// or a purely illustrative diagram that carries NO requirement (must not be fabricated).
+const KIND = {
+  spec: { label: '規格文字內嵌', cls: 'b-amber' },
+  annotated: { label: '示意圖 · 需求在標註', cls: 'b-mid' },
+  decorative: { label: '純示意 · 無需求', cls: 'b-grey' },
+}
+const kindOf = (k) => KIND[k] || KIND.spec
+
 const doc = ref(null)
 const transcriptions = ref([]) // { id, filename, src, text (editable), confidence }
 const reqItems = ref([]) // editable requirement items (before freeze)
@@ -41,14 +51,15 @@ async function runExtract() {
 }
 function addReqItem() {
   const n = String(reqItems.value.length + 1).padStart(2, '0')
-  reqItems.value.push({ id: 'SI-' + n, text: '' })
+  reqItems.value.push({ id: 'SI-' + n, text: '', source: '手動新增' })
 }
 function removeReqItem(i) { reqItems.value.splice(i, 1) }
 function freezeRequirements() {
-  // re-number sequentially on freeze, mirroring the real "定版" behaviour
+  // re-number sequentially on freeze, mirroring the real "定版" behaviour;
+  // keep `source` so each item stays traceable to where it came from in the file
   reqItems.value = reqItems.value
     .filter((r) => String(r.text || '').trim())
-    .map((r, i) => ({ id: 'SI-' + String(i + 1).padStart(2, '0'), text: r.text.trim() }))
+    .map((r, i) => ({ id: 'SI-' + String(i + 1).padStart(2, '0'), text: r.text.trim(), source: r.source }))
   frozen.value = true
 }
 function unfreeze() { frozen.value = false }
@@ -208,8 +219,10 @@ function restart() {
     <section v-if="step === 1" class="panel">
       <h2>① 上傳文件</h2>
       <p class="sub">
-        真實工具在這裡拖入規格文件。示範版請載入一份合成範例——虛構的「使用者登入」功能，
-        其規格文字被燒進低品質截圖裡。
+        真實工具在這裡拖入規格文件。示範版請載入一份合成範例——虛構的「使用者登入」功能。
+        重點在於：<strong>需求散落在同一份檔案的內文與多張圖片裡</strong>，有的圖把規格文字燒進截圖、
+        有的只是<strong>帶標註框的介面示意圖</strong>，還有的純粹是示意圖、
+        <strong>不帶任何需求</strong>。
       </p>
       <div class="row">
         <button class="btn" @click="loadSample" :disabled="!!doc">
@@ -217,18 +230,37 @@ function restart() {
         </button>
         <span v-if="doc" class="mono" style="color: var(--muted)">{{ doc.name }}</span>
       </div>
-      <div v-if="doc" class="img-grid" style="margin-top: 16px">
-        <div v-for="im in doc.images" :key="im.id" class="img-card">
-          <img :src="im.src" :alt="im.filename" />
-          <div class="cap">{{ im.filename }} — 規格文字內嵌於圖片</div>
+
+      <template v-if="doc">
+        <!-- Requirements that live in plain body text, not in any image -->
+        <div class="doc-text" v-if="doc.bodyText">
+          <div class="doc-text-hd">文件內文</div>
+          <div v-for="(b, i) in doc.bodyText" :key="i" class="doc-para">
+            <div class="doc-h">{{ b.heading }}</div>
+            <p>{{ b.text }}</p>
+          </div>
         </div>
-      </div>
+
+        <div class="doc-text-hd" style="margin-top: 16px">文件內圖片（{{ doc.images.length }}張）</div>
+        <div class="img-grid" style="margin-top: 8px">
+          <div v-for="im in doc.images" :key="im.id" class="img-card">
+            <img :src="im.src" :alt="im.filename" />
+            <div class="cap">
+              <span class="badge" :class="kindOf(im.kind).cls">{{ kindOf(im.kind).label }}</span>
+              <div class="mono" style="margin-top: 4px">{{ im.filename }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
     </section>
 
     <!-- Step 2: Review gate -->
     <section v-if="step === 2" class="panel">
       <h2>② 人工審查關卡</h2>
-      <p class="sub">每張圖逐字判讀並附信心標記。由你編修並核准——這是防捏造的把關點。</p>
+      <p class="sub">
+        每張圖逐字判讀並附信心標記——示意圖讀<strong>標註</strong>、規格圖讀<strong>內嵌文字</strong>，
+        純示意圖則<strong>不捏造需求</strong>。由你編修並核准，這是防捏造的把關點。
+      </p>
       <div class="gate-note">
         🔒 下一步生成<strong>只吃這份核准過的文字</strong>。原始圖片不會往下游傳遞——沒有核准文字，就沒有生成案例。
       </div>
@@ -245,10 +277,17 @@ function restart() {
         <div>
           <div class="filename">
             {{ t.filename }} ·
-            <span class="badge" :class="confClass(t.confidence)">信心 {{ t.confidence }}</span>
+            <span class="badge" :class="kindOf(t.kind).cls">{{ kindOf(t.kind).label }}</span>
+            <span v-if="!t.no_requirement" class="badge" :class="confClass(t.confidence)">信心 {{ t.confidence }}</span>
             <span v-if="t.confidence === '低'" style="color: var(--fail-ink)"> ← 這張要核對</span>
           </div>
-          <textarea v-model="t.text"></textarea>
+          <div v-if="t.note" class="src-note">{{ t.note }}</div>
+          <!-- Decorative image: the model returns nothing rather than inventing a requirement -->
+          <div v-if="t.no_requirement" class="no-req">
+            未偵測到可擷取的需求——此圖判為<strong>純示意</strong>，刻意<strong>不捏造</strong>。
+            若你認為它其實帶有需求，可在下方補上；否則留白即可。
+          </div>
+          <textarea v-model="t.text" :placeholder="t.no_requirement ? '（無需求；如需補充再填寫）' : ''"></textarea>
         </div>
       </div>
     </section>
@@ -271,17 +310,24 @@ function restart() {
         </button>
       </div>
 
+      <p class="sub" style="margin-top: -4px">
+        注意每一項的<strong>來源</strong>：它們分別來自內文、內嵌文字的規格圖、以及示意圖的標註——
+        同一份檔案裡散落各處，這裡把它們收斂成一份可追溯的清單。
+      </p>
       <div v-if="reqItems.length" class="rtm" style="margin-bottom: 14px">
         <div v-for="(r, i) in reqItems" :key="i" class="rtm-row" :class="{ frozen: frozen }">
           <span class="rtm-id">{{ r.id }}</span>
-          <textarea
-            v-if="!frozen"
-            v-model="r.text"
-            class="req-edit"
-            rows="1"
-            placeholder="需求項目敘述…"
-          ></textarea>
-          <span v-else>{{ r.text }}</span>
+          <div class="req-cell">
+            <textarea
+              v-if="!frozen"
+              v-model="r.text"
+              class="req-edit"
+              rows="1"
+              placeholder="需求項目敘述…"
+            ></textarea>
+            <span v-else>{{ r.text }}</span>
+            <span v-if="r.source" class="src-badge">來源：{{ r.source }}</span>
+          </div>
           <button v-if="!frozen" class="btn sm ghost" @click="removeReqItem(i)">移除</button>
           <span v-else class="badge b-green">已凍結</span>
         </div>
