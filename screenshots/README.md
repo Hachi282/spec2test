@@ -20,14 +20,6 @@ the employer.** When in doubt, blur it or use the demo. 有真實需求內容或
 雇主名／logo／部門／內部網址、真實規格文字、真實產品或模組名、使用者名／員編／頭像／email、
 任何端點/host/token、以及會洩漏上述資訊的分頁/書籤/標題列。
 
-## Two safe ways to get shots / 兩個安全來源
-
-1. **Use the clean-room [`demo/`](../demo/)** — it runs on synthetic sample data with a
-   mocked LLM, so every pixel is safe to publish. This is the recommended source.
-   用 clean-room demo 截圖：全是假資料、mock LLM，每個像素都能公開（推薦）。
-2. **Redact real screenshots** — crop out chrome, then blur/black-box any real text and
-   identifiers before saving. Verify at 100% zoom that nothing readable remains.
-   打碼真實截圖：裁掉瀏覽器外框，把真實文字與識別資訊模糊/塗黑後再存；用 100% 放大檢查沒有殘留可讀資訊。
 
 ## Suggested shots (filenames the README expects) / 建議截圖（README 預期檔名）
 
@@ -35,9 +27,8 @@ the employer.** When in doubt, blur it or use the demo. 有真實需求內容或
 |----------|-------|
 | `01-wizard-overview.png` | The 6-step wizard / overall layout |
 | `02-review-gate.png` | The human review gate — editable transcription + confidence |
-| `03-triage-table.png` | Triage data-table with reason badges (discrepancy / low-conf / duplicate) |
+| `03-triage-table.png` | Triage data-table with reason badges (discrepancy / low-conf / duplicate) + Excel/JSON export |
 | `04-rtm-coverage.png` | RTM / coverage view (requirement ↔ cases) |
-| `05-export.png` | Export to Excel / JSON |
 
 Add each with a one-line caption in the README. Keep widths ~720px for GitHub rendering.
 每張在 README 配一句說明；寬度約 720px 最適合 GitHub 呈現。

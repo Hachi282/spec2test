@@ -8,6 +8,12 @@
 > **可審閱的結構化驗收測試案例**，內建**人工審查關卡**，並輸出**給下游自動化用的機器可讀契約**。
 
 <p align="center">
+  <img src="screenshots/01-wizard-overview.png" alt="6-step wizard overview" width="820">
+  <br><em>The 6-step wizard — upload → review → freeze → generate → triage → export.
+  六步精靈：上傳 → 審查 → 凍結 → 生成 → 分流 → 匯出。</em>
+</p>
+
+<p align="center">
   <strong>▶ Live demo / 線上試玩：<a href="https://hachi282.github.io/spec2test/">hachi282.github.io/spec2test</a></strong>
   <br><em>Clean-room build — mock data, mocked LLM, no network. Walk the full 6-step pipeline in your browser.</em>
   <br><em>純前端 clean-room 版本，使用假資料與模擬 LLM、不連任何服務，可在瀏覽器走完整條 6 步流程。</em>
@@ -70,6 +76,15 @@ Upload → Vision transcribe → HUMAN REVIEW GATE → Generate → Triage & rev
    for downstream test-automation tooling.
 
 我採用「**模型提出建議、由人做最終決定**」的分階段流程，並將**可信度與可追溯性**置於首位。系統先從圖片中**逐字擷取原始文字**，同時標示模型**信心值**，不主動推測或補齊缺漏；接著，所有辨識結果都必須經過**人工審閱與修正**，才能進入生成階段。後續模型**只使用人工確認過的文字，不直接接觸原始圖片**，以降低誤讀或捏造需求的風險。生成時透過 **few-shot 範例**統一測試案例的詳細程度與撰寫風格。此外，系統會以「**內容落差**」、「**中低信心**」及「**疑似重複**」三類標記呈現風險，協助審查者**優先處理需要關注的項目**。最終成果可匯出為供人員檢視的 **Excel**，以及供系統串接與版本管理的 **JSON**。
+
+<p align="center">
+  <img src="screenshots/02-review-gate.png" alt="Human review gate" width="820">
+  <br><em>The human review gate — the vision LLM's per-image transcription is editable, and items
+  flagged in-doubt are surfaced for correction <strong>before</strong> generation. Generation trusts
+  only the approved text; the raw image is never forwarded.
+  人工審查關卡：Vision LLM 的逐張判讀可編輯，標記「存疑」的項目在生成<strong>之前</strong>先請人核對；
+  生成只信任核准後的文字，不再回看原圖。</em>
+</p>
 
 ## Architecture / 架構
 
@@ -138,6 +153,21 @@ Full diagrams and the design rationale live in [`docs/`](docs/).
 - **大量文件下的穩健生成** — 設計依內容結構的切分（字數門檻＋需求密度＋每段圖片預算），並加上**截斷自我修復**：偵測到過長回應時把分段再切細、重生，而非默默掉案例；分段以全域並行上限平行處理。
 - **並行與流量下的正確性** — 把用量計數移入 context-local 儲存，修掉並行請求間互相污染的計量錯誤；以**串流＋閒置逾時**取代固定請求時限，讓健康的長工作跑完、卡死的快速失敗；並加入並行閘道與上傳限制以承受流量。
 - **建立 pytest 回歸測試套件（100+ 筆）** — 涵蓋圖片擷取、內容切分、模型判讀及輸出契約等核心行為，並做過一次**逐行審查**揪出「吞掉錯誤或回傳看似合理卻錯誤值」的無聲失敗路徑，**降低功能調整造成回歸或破壞下游相容性的風險**。
+
+<p align="center">
+  <img src="screenshots/03-triage-table.png" alt="Risk-triage data-table" width="820">
+  <br><em>The triage table — every generated case carries reason badges (discrepancy /
+  medium-low confidence / suspected duplicate), maps to its requirement IDs, and exports to
+  Excel or versioned JSON. Editing a cell re-flows triage in place.
+  風險分流表：每筆案例帶有原因徽章（落差／中低信心／疑似重複），對應到需求編號，並可匯出 Excel 或帶版本的 JSON；就地編修即時反映分流。</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/04-rtm-coverage.png" alt="RTM coverage view" width="820">
+  <br><em>The Requirements Traceability Matrix — each <strong>frozen</strong> requirement maps to
+  the cases covering it, with uncovered items flagged as coverage gaps.
+  需求追溯矩陣（RTM）：每條<strong>凍結後</strong>的需求對應到覆蓋它的案例，未覆蓋者標為覆蓋缺口。</em>
+</p>
 
 ## Tech stack / 技術棧
 
