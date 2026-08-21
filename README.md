@@ -8,8 +8,9 @@
 > **可審閱的結構化驗收測試案例**，內建**人工審查關卡**，並輸出**給下游自動化用的機器可讀契約**。
 
 <p align="center">
-  <img src="screenshots/01-wizard-overview.png" alt="Wizard overview" width="720">
-  <br><em>▲ Replace with your sanitized screenshot — see <a href="screenshots/README.md">screenshots/README.md</a></em>
+  <strong>▶ Live demo / 線上試玩：<a href="https://hachi282.github.io/spec2test/">hachi282.github.io/spec2test</a></strong>
+  <br><em>Clean-room build — mock data, mocked LLM, no network. Walk the full 6-step pipeline in your browser.</em>
+  <br><em>純前端 clean-room 版本，使用假資料與模擬 LLM、不連任何服務，可在瀏覽器走完整條 6 步流程。</em>
 </p>
 
 ---
@@ -116,8 +117,17 @@ Full diagrams and the design rationale live in [`docs/`](docs/).
 - **Frontend resilience** — e.g. moved large draft image bytes from localStorage (which
   overflowed its ~5 MB quota and silently dropped images) to **IndexedDB**, so an 80-image
   draft survives a page refresh. (See [`docs/challenges.md`](docs/challenges.md).)
-- **A pytest regression net** guarding core reading/chunking/transcription behavior and the
-  downstream contract.
+- **Robust generation at scale** — structure-aware chunking (character threshold + requirement
+  density + per-chunk image budget) with **truncation self-healing**: an over-long response is
+  detected and the chunk re-split and regenerated instead of silently dropping cases; chunks
+  run in parallel under a global concurrency limit.
+- **Correctness under concurrency & load** — fixed usage accounting that leaked across
+  concurrent requests (context-local counters), replaced a fixed request deadline with
+  **streaming + idle-timeout** so honest long jobs finish while stuck ones fail fast, and added
+  a concurrency gate + upload limits for traffic resilience.
+- **A pytest regression net** (100+ cases) guarding core reading/chunking/transcription
+  behavior and the downstream contract, plus a **line-by-line audit** that caught silent-failure
+  paths (swallowed errors, plausible-but-wrong return values).
 
 - **設計並實作人工審查機制** — 建立 **「模型辨識 → 人工編輯與核准 → 依核准文字生成」** 流程。生成階段**僅使用人工確認過的文字**，不將原始圖片傳入生成模型，**降低模型誤讀或捏造需求的風險**。
 - **獨立設計並開發 Vue 3 SPA** — 打造**六步驟操作精靈**，整合可編輯的人工審查、附帶原因標記的**風險分流**、需求覆蓋檢視，以及 **Excel／JSON 雙格式匯出**。
@@ -125,7 +135,9 @@ Full diagrams and the design rationale live in [`docs/`](docs/).
 - **實作近似重複偵測** — 識別總覽與細節等不同來源之間的重疊內容，將疑似重複項目轉化為**可供人工判斷的審查訊號**，減少重複案例與無效資訊。
 - **導入 MongoDB 持久化** — 採用**白名單欄位儲存策略**，避免非預期資料寫入；同時改善**閒置連線遭防火牆中斷**的問題，強化資料庫連線的穩定性。
 - **強化前端資料保存韌性** — 將大量草稿圖片由容量有限的 localStorage 遷移至 **IndexedDB**，避免超過約 5 MB 容量限制導致圖片遺失，確保包含 **80 張圖片的草稿**在頁面重新整理後仍可完整還原。
-- **建立 pytest 回歸測試套件** — 涵蓋圖片擷取、內容切分、模型判讀及輸出契約等核心行為，**降低功能調整造成回歸或破壞下游相容性的風險**。
+- **大量文件下的穩健生成** — 設計依內容結構的切分（字數門檻＋需求密度＋每段圖片預算），並加上**截斷自我修復**：偵測到過長回應時把分段再切細、重生，而非默默掉案例；分段以全域並行上限平行處理。
+- **並行與流量下的正確性** — 把用量計數移入 context-local 儲存，修掉並行請求間互相污染的計量錯誤；以**串流＋閒置逾時**取代固定請求時限，讓健康的長工作跑完、卡死的快速失敗；並加入並行閘道與上傳限制以承受流量。
+- **建立 pytest 回歸測試套件（100+ 筆）** — 涵蓋圖片擷取、內容切分、模型判讀及輸出契約等核心行為，並做過一次**逐行審查**揪出「吞掉錯誤或回傳看似合理卻錯誤值」的無聲失敗路徑，**降低功能調整造成回歸或破壞下游相容性的風險**。
 
 ## Tech stack / 技術棧
 
@@ -160,6 +172,10 @@ Full diagrams and the design rationale live in [`docs/`](docs/).
 | [`demo/`](demo/) | Clean-room runnable demo (mock data, GitHub-Pages-ready) |
 
 ## Try the demo / 試跑 Demo
+
+**▶ Live (no install): [hachi282.github.io/spec2test](https://hachi282.github.io/spec2test/)**
+
+Or run it locally / 或在本機執行：
 
 ```bash
 cd demo
