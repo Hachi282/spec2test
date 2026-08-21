@@ -93,10 +93,23 @@ export async function transcribeImages(images) {
   }))
 }
 
+// ── Mocked requirement-item extraction (the "freeze" step) ────────────────────
+// The real pipeline is two-phase: pull requirement items out of the approved text,
+// let a human edit them, then FREEZE the set before any case is generated — so items
+// and cases can't drift apart. Here we just return a copy after a short delay.
+export async function extractRequirements() {
+  await delay(600)
+  return requirementItems.map((r) => ({ ...r }))
+}
+
 // ── Mocked case generation ────────────────────────────────────────────────────
-// Produces structured acceptance cases from the (human-approved) transcriptions.
+// Produces structured acceptance cases from the (human-approved, frozen) requirements.
 // Deliberately includes: a low-confidence case, a discrepancy-flagged case, and a
 // near-duplicate pair (overview vs. detail) — the three triage signals the UI surfaces.
+// The code-grounded fields (api_assertion / code_ref / code_verified) show the schema's
+// downstream-automation intent; they are populated only where a machine check applies,
+// and left null elsewhere — code-grounding is an optional, partial layer, not a claim
+// that every case is auto-verified.
 export async function generateCases() {
   await delay(900)
   return [
@@ -111,6 +124,9 @@ export async function generateCases() {
       steps: '1. 開啟登入表單\n2. 輸入有效帳號\n3. 輸入有效密碼\n4. 點「登入」',
       test_data: '帳號：alice／密碼：Passw0rd!',
       expected: '通過身分驗證並導向首頁。',
+      api_assertion: 'POST /api/session → 200，並設定 session cookie',
+      code_ref: 'services/auth.py::authenticate',
+      code_verified: true,
       priority: '高',
       confidence: '高',
       discrepancy: '',
@@ -127,6 +143,9 @@ export async function generateCases() {
       steps: '1. 輸入 7 碼密碼\n2. 送出',
       test_data: '密碼：Ab1xyz',
       expected: '註冊流程擋下該輸入，因長度未達 8 碼。',
+      api_assertion: null,
+      code_ref: null,
+      code_verified: null,
       priority: '中',
       confidence: '中',
       discrepancy: '',
@@ -143,6 +162,9 @@ export async function generateCases() {
       steps: '1. 輸入「passw0rd!」（無大寫）\n2. 送出',
       test_data: '密碼：passw0rd!',
       expected: '輸入因缺少大寫字母被判為不符強度要求。',
+      api_assertion: null,
+      code_ref: null,
+      code_verified: null,
       priority: '中',
       confidence: '中',
       discrepancy: '',
@@ -159,6 +181,9 @@ export async function generateCases() {
       steps: '1. 連續輸入 5 次錯誤密碼',
       test_data: '5 次錯誤密碼',
       expected: '帳號鎖定 15 分鐘，並顯示「帳號已鎖定」訊息。',
+      api_assertion: '連續 5 次 401 後 → 423 Locked，Retry-After: 900',
+      code_ref: 'services/auth.py::register_failure',
+      code_verified: true,
       priority: '高',
       confidence: '低', // from the blurriest image → low confidence → needs review
       discrepancy: '',
@@ -175,10 +200,14 @@ export async function generateCases() {
       steps: '1. 輸入一次錯誤密碼\n2. 送出',
       test_data: '密碼：wrong',
       expected: '登入失敗並顯示「帳號或密碼錯誤」訊息。',
+      api_assertion: null,
+      code_ref: 'services/auth.py::register_failure',
+      code_verified: false,
       priority: '中',
       confidence: '中',
-      // discrepancy example: the stated expected result differs from the approved text nuance
-      discrepancy: '核准文字提到此次失敗應累加鎖定計數；本案例未驗證計數——請確認預期結果。',
+      // code-grounded discrepancy: comparing against the reference implementation surfaced
+      // a behaviour the case doesn't cover → flagged for human decision, not auto-resolved.
+      discrepancy: '對照參考實作 services/auth.py：失敗計數於成功登入後才歸零；本案例未涵蓋「單次失敗仍應累加鎖定計數」的行為，預期結果請人工確認。',
       review_status: '',
     },
     {
@@ -193,6 +222,9 @@ export async function generateCases() {
       steps: '1. 重複登入失敗直到帳號被鎖定',
       test_data: '重複輸入錯誤密碼',
       expected: '連續登入失敗後帳號遭鎖定，並顯示「帳號已鎖定」訊息，鎖定到期前無法登入。',
+      api_assertion: null,
+      code_ref: null,
+      code_verified: null,
       priority: '中',
       confidence: '中',
       discrepancy: '',
@@ -209,6 +241,9 @@ export async function generateCases() {
       steps: '1. 點「忘記密碼」\n2. 送出 email\n3. 開啟重設連結\n4. 設定新的有效密碼',
       test_data: 'email：alice@example.com',
       expected: '寄出重設連結；點擊後可設定新密碼。',
+      api_assertion: 'POST /api/password/reset → 202 Accepted',
+      code_ref: 'services/password.py::request_reset',
+      code_verified: true,
       priority: '低',
       confidence: '中',
       discrepancy: '',
@@ -217,7 +252,7 @@ export async function generateCases() {
   ]
 }
 
-// The requirement items (frozen) the cases trace back to — drives the RTM / coverage view.
+// The requirement items the cases trace back to — seeds the freeze step and RTM / coverage.
 export const requirementItems = [
   { id: 'SI-01', text: '使用者可用有效的帳號與密碼登入。' },
   { id: 'SI-02', text: '密碼長度須至少 8 碼，且含大寫字母與數字。' },

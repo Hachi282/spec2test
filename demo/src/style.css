@@ -187,7 +187,20 @@ table.cases tr.approved { background: var(--pass-bg); }
 .rtm { display: grid; gap: 8px; }
 .rtm-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: center; padding: 9px 11px; border: 1px solid var(--rule); border-left: 3px solid var(--pass); border-radius: var(--radius); background: #fff; }
 .rtm-row.gap { border-left-color: var(--fail); background: var(--fail-bg); }
+.rtm-row.frozen { border-left-color: var(--navy); background: var(--panel); }
 .rtm-id { font-family: var(--mono); font-weight: 600; color: var(--navy); }
+
+/* Requirement editor (freeze step) */
+.req-edit { width: 100%; resize: vertical; min-height: 34px; font: inherit; font-family: var(--sans); padding: 6px 8px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--paper); color: var(--ink); }
+.req-edit:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px rgba(0, 75, 135, 0.12); }
+
+/* Triage signal legend */
+.signal-legend { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; font-size: 0.82rem; color: var(--muted); }
+.signal-legend li { display: flex; align-items: baseline; gap: 8px; }
+.signal-legend .badge { flex: none; }
+
+/* code-grounded reference line in the case table */
+.code-ref { margin-top: 5px; font-family: var(--mono); font-size: 0.72rem; color: var(--navy); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 pre.json { background: var(--ink); color: #d7e3ef; padding: 14px; border-radius: var(--radius); overflow: auto; font-family: var(--mono); font-size: 0.78rem; line-height: 1.55; max-height: 380px; border: 1px solid var(--navy-900); }
 
